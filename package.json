@@ -1,0 +1,133 @@
+{
+  "name": "sparkshift",
+  "displayName": "SparkShift",
+  "description": "Save and restore workflows",
+  "icon": "./icon/icon.png",
+  "publisher": "iamkulele",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+		"type": "git",
+		"url": "https://github.com:iamkulele/sparkshift.git"
+	},
+  "engines": {
+    "vscode": "^1.103.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:sparkshift.saveWorkflow",
+    "onCommand:sparkshift.restoreWorkflow"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "sparkshift.saveWorkflow",
+        "title": "Save Workflow"
+      },
+      {
+        "command": "sparkshift.restoreWorkflow",
+        "title": "Restore Workflow...",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "sparkshift.refreshWorkflows",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "sparkshift.openTab",
+        "title": "Open Tab"
+      },
+      {
+        "command": "sparkshift.deleteWorkflow",
+        "title": "Delete",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "sparkshift.renameWorkflow",
+        "title": "Rename",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "sparkshift.deleteTab",
+        "title": "Delete Tab",
+        "icon": "$(trash)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "sparkshift.saveWorkflow",
+        "key": "ctrl+alt+s",
+        "mac": "cmd+alt+s",
+        "when": "editorTextFocus"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "sparkshift.workflows",
+          "name": "WORKFLOWS"
+        }
+      ]
+    },
+    "menus": {
+      "editor/title": [
+        {
+          "command": "sparkshift.saveWorkflow",
+          "group": "navigation"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "sparkshift.refreshWorkflows",
+          "when": "view == sparkshift.workflows",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "sparkshift.restoreWorkflow",
+          "when": "view == sparkshift.workflows && viewItem == session",
+          "group": "inline"
+        },
+        {
+          "command": "sparkshift.renameWorkflow",
+          "when": "view == sparkshift.workflows && viewItem == session",
+          "group": "inline"
+        },
+        {
+          "command": "sparkshift.deleteWorkflow",
+          "when": "view == sparkshift.workflows && viewItem == session",
+          "group": "inline"
+        },
+        {
+          "command": "sparkshift.deleteTab",
+          "when": "view == sparkshift.workflows && viewItem == tab",
+          "group": "inline"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.103.0",
+    "@types/mocha": "^10.0.9",
+    "@types/node": "20.x",
+    "@typescript-eslint/eslint-plugin": "^8.10.0",
+    "@typescript-eslint/parser": "^8.7.0",
+    "eslint": "^9.13.0",
+    "typescript": "^5.6.3",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1"
+  }
+}
