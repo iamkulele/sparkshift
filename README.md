@@ -28,32 +28,3 @@ This extension allows you to save and restore your workflows in Visual Studio Co
     *   In the Explorer view, you will see a "WORKFLOWS" section.
     *   Right-click on a workflow to rename or delete it.
     *   Right-click on a tab within a workflow to delete it.
-
-## Publishing to the Marketplace
-
-To publish this extension to the Visual Studio Marketplace, you will need to use the `vsce` command-line tool.
-
-1.  **Install `vsce`**:
-    ```bash
-    npm install -g vsce
-    ```
-
-2.  **Create a Publisher**:
-    *   Go to the [Visual Studio Marketplace](https://marketplace.visualstudio.com/manage) and create a publisher.
-    *   Create a new Azure DevOps organization if you don't have one already.
-    *   Create a Personal Access Token (PAT) with the "Marketplace (publish)" scope.
-
-3.  **Update `package.json`**:
-    *   Add your publisher ID to the `publisher` field in the `package.json` file:
-        ```json
-        "publisher": "your-publisher-id"
-        ```
-
-4.  **Publish**:
-    *   Log in to your publisher account:
-        ```bash
-        vsce login your-publisher-id
-        ```
-    *   Package and publish the extension:
-        ```bash
-        vsce publish
