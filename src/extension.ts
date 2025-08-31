@@ -276,7 +276,7 @@ export function activate(context: vscode.ExtensionContext) {
             return;
         }
 
-        group.tabs = group.tabs.filter(t => t.label !== tabInfo.label);
+        group.tabs = group.tabs.filter(t => tabInfo.uri ? t.uri !== tabInfo.uri : t.label !== tabInfo.label);
 
         if (group.tabs.length === 0) {
             const groupIndex = workflow.findIndex(g => g.viewColumn === viewColumn);

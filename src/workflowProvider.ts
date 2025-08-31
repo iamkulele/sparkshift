@@ -98,6 +98,6 @@ class TabItem extends vscode.TreeItem {
         } else {
             this.description = 'Special Tab';
         }
-        this.id = `${this.workflowName}-${this.viewColumn}-${this.label}`;
+        this.id = `${this.workflowName}-${this.viewColumn}-${this.label}-${this.tabInfo.uri}`;
     }
 }
