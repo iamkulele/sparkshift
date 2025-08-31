@@ -25,7 +25,8 @@
     "commands": [
       {
         "command": "sparkshift.saveWorkflow",
-        "title": "Save Workflow"
+        "title": "Save Workflow",
+        "icon": "$(save)"
       },
       {
         "command": "sparkshift.restoreWorkflow",
@@ -81,6 +82,11 @@
         }
       ],
       "view/title": [
+        {
+          "command": "sparkshift.saveWorkflow",
+          "when": "view == sparkshift.workflows",
+          "group": "navigation"
+        },
         {
           "command": "sparkshift.refreshWorkflows",
           "when": "view == sparkshift.workflows",
