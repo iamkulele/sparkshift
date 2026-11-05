@@ -4,7 +4,7 @@
   "description": "Save and restore workflows",
   "icon": "./icon/icon.png",
   "publisher": "iamkulele-sparkshift",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "license": "MIT",
   "repository": {
 		"type": "git",
@@ -22,6 +22,16 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "configuration": {
+      "title": "SparkShift",
+      "properties": {
+        "sparkshift.confirmBeforeRestore": {
+          "type": "boolean",
+          "default": true,
+          "description": "Ask for confirmation before restoring a workflow, since restoring closes all currently open editors."
+        }
+      }
+    },
     "commands": [
       {
         "command": "sparkshift.saveWorkflow",
@@ -56,6 +66,21 @@
         "command": "sparkshift.deleteTab",
         "title": "Delete Tab",
         "icon": "$(trash)"
+      },
+      {
+        "command": "sparkshift.editTabPath",
+        "title": "Edit File Path...",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "sparkshift.restoreGroup",
+        "title": "Restore Group",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "sparkshift.renameGroup",
+        "title": "Rename Group",
+        "icon": "$(edit)"
       }
     ],
     "keybindings": [
@@ -70,7 +95,8 @@
       "explorer": [
         {
           "id": "sparkshift.workflows",
-          "name": "WORKFLOWS"
+          "name": "Workflows",
+          "icon": "$(edit)"
         }
       ]
     },
@@ -112,6 +138,21 @@
         {
           "command": "sparkshift.deleteTab",
           "when": "view == sparkshift.workflows && viewItem == tab",
+          "group": "inline"
+        },
+        {
+          "command": "sparkshift.editTabPath",
+          "when": "view == sparkshift.workflows && viewItem == tab",
+          "group": "inline"
+        },
+        {
+          "command": "sparkshift.restoreGroup",
+          "when": "view == sparkshift.workflows && viewItem == group",
+          "group": "inline"
+        },
+        {
+          "command": "sparkshift.renameGroup",
+          "when": "view == sparkshift.workflows && viewItem == group",
           "group": "inline"
         }
       ]

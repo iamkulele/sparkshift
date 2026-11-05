@@ -1,27 +1,23 @@
 import * as vscode from 'vscode';
-import { WorkflowsProvider } from './workflowProvider';
-
-const WORKFLOWS_KEY = 'workflows';
-
-interface TabInfo {
-    uri?: string;
-    isPreview: boolean;
-    label: string;
-    type: 'file' | 'other';
-}
-
-interface TabGroupInfo {
-    viewColumn: vscode.ViewColumn;
-    tabs: TabInfo[];
-    activeTabUri?: string;
-}
+import * as path from 'path';
+import {
+    WorkflowsProvider,
+    WorkflowsDragAndDropController,
+    TabInfo,
+    TabGroupInfo,
+    WORKFLOWS_KEY,
+} from './workflowProvider';
 
 export function activate(context: vscode.ExtensionContext) {
 
     console.log('Congratulations, your extension "sparkshift" is now active!');
 
     const workflowsProvider = new WorkflowsProvider(context);
-    vscode.window.registerTreeDataProvider('sparkshift.workflows', workflowsProvider);
+    const workflowsTreeView = vscode.window.createTreeView('sparkshift.workflows', {
+        treeDataProvider: workflowsProvider,
+        dragAndDropController: new WorkflowsDragAndDropController(context, workflowsProvider),
+        canSelectMany: true,
+    });
 
     const saveWorkflowCommand = vscode.commands.registerCommand('sparkshift.saveWorkflow', async () => {
         const now = new Date();
@@ -145,6 +141,46 @@ export function activate(context: vscode.ExtensionContext) {
         await vscode.commands.executeCommand('workbench.action.closeAllEditors');
     });
 
+    const openSavedGroup = async (group: TabGroupInfo): Promise<void> => {
+        for (const tab of group.tabs) {
+            try {
+                if (tab.uri) {
+                    await vscode.window.showTextDocument(vscode.Uri.parse(tab.uri), {
+                        viewColumn: group.viewColumn,
+                        preserveFocus: true,
+                        preview: tab.isPreview,
+                    });
+                } else if (tab.label === 'Settings') {
+                    await vscode.commands.executeCommand('workbench.action.openSettings');
+                } else if (tab.label === 'Welcome') {
+                    await vscode.commands.executeCommand('workbench.action.showWelcomePage');
+                }
+            } catch (error) {
+                console.error(`Failed to open tab ${tab.label}:`, error);
+                vscode.window.showWarningMessage(`Could not restore tab: ${tab.label}`);
+            }
+        }
+    };
+
+    const activateSavedGroup = async (group: TabGroupInfo): Promise<void> => {
+        if (!group.activeTabUri) {
+            return;
+        }
+        try {
+            const activeTab = group.tabs.find(t => t.uri === group.activeTabUri);
+            if (activeTab?.uri) {
+                await vscode.window.showTextDocument(vscode.Uri.parse(activeTab.uri), {
+                    viewColumn: group.viewColumn,
+                    preserveFocus: false,
+                    preview: false,
+                });
+            }
+        } catch (error) {
+            console.error(`Failed to activate tab ${group.activeTabUri}:`, error);
+            vscode.window.showWarningMessage(`Could not activate tab: ${group.activeTabUri}`);
+        }
+    };
+
     const restoreWorkflowCommand = vscode.commands.registerCommand('sparkshift.restoreWorkflow', async (workflowItem?: { label: string }) => {
         let workflowName: string | undefined;
 
@@ -172,63 +208,103 @@ export function activate(context: vscode.ExtensionContext) {
             return;
         }
 
+        const restoreAnyway = "Restore and Don't Ask Again";
+        const confirmBeforeRestore = vscode.workspace.getConfiguration('sparkshift').get('confirmBeforeRestore', true);
+        if (confirmBeforeRestore) {
+            const choice = await vscode.window.showWarningMessage(
+                'Restoring this workflow will close all currently open editors and replace them with the saved layout.',
+                { modal: true },
+                'Restore',
+                restoreAnyway
+            );
+            if (choice === undefined) {
+                return;
+            }
+            if (choice === restoreAnyway) {
+                await vscode.workspace.getConfiguration('sparkshift').update('confirmBeforeRestore', false, vscode.ConfigurationTarget.Global);
+            }
+        }
+
         await vscode.commands.executeCommand('workbench.action.closeAllEditors');
 
         for (const group of savedGroups) {
-            for (const tab of group.tabs) {
-                try {
-                    if (tab.uri) {
-                        const uri = vscode.Uri.parse(tab.uri);
-                        await vscode.window.showTextDocument(uri, {
-                            viewColumn: group.viewColumn,
-                            preserveFocus: true,
-                            preview: tab.isPreview,
-                        });
-                    } else if (tab.label === 'Settings') {
-                        await vscode.commands.executeCommand('workbench.action.openSettings');
-                    } else if (tab.label === 'Welcome') {
-                        await vscode.commands.executeCommand('workbench.action.showWelcomePage');
-                    }
-                } catch (error) {
-                    console.error(`Failed to open tab ${tab.label}:`, error);
-                    vscode.window.showWarningMessage(`Could not restore tab: ${tab.label}`);
-                }
-            }
+            await openSavedGroup(group);
         }
 
         // After all tabs are opened, iterate again to set the active tab for each group.
         for (const group of savedGroups) {
-            if (group.activeTabUri) {
-                try {
-                    const activeTab = group.tabs.find((t: TabInfo) => t.uri === group.activeTabUri);
-                    if (activeTab && activeTab.uri) {
-                        const uri = vscode.Uri.parse(activeTab.uri);
-                        await vscode.window.showTextDocument(uri, {
-                            viewColumn: group.viewColumn,
-                            preserveFocus: false,
-                            preview: false,
-                        });
-                    }
-                } catch (error) {
-                    console.error(`Failed to activate tab ${group.activeTabUri}:`, error);
-                    vscode.window.showWarningMessage(`Could not activate tab: ${group.activeTabUri}`);
-                }
-            }
+            await activateSavedGroup(group);
         }
 
         vscode.window.showInformationMessage(`Workflow '${workflowName}' restored!`);
+    });
+
+    const restoreGroupCommand = vscode.commands.registerCommand('sparkshift.restoreGroup', async (groupItem: { workflowName: string; groupIndex: number }) => {
+        if (!groupItem) {
+            return;
+        }
+        const savedWorkflows = context.globalState.get<{ [name: string]: TabGroupInfo[] }>(WORKFLOWS_KEY, {});
+        const group = savedWorkflows[groupItem.workflowName]?.[groupItem.groupIndex];
+        if (!group) {
+            return;
+        }
+
+        await openSavedGroup(group);
+        await activateSavedGroup(group);
+    });
+
+    const renameGroupCommand = vscode.commands.registerCommand('sparkshift.renameGroup', async (groupItem: { workflowName: string; groupIndex: number }) => {
+        if (!groupItem) {
+            return;
+        }
+        const savedWorkflows = context.globalState.get<{ [name: string]: TabGroupInfo[] }>(WORKFLOWS_KEY, {});
+        const group = savedWorkflows[groupItem.workflowName]?.[groupItem.groupIndex];
+        if (!group) {
+            return;
+        }
+
+        const currentName = group.name ?? `Group ${group.viewColumn}`;
+        const newName = await vscode.window.showInputBox({
+            prompt: 'Enter a new name for this group',
+            value: currentName
+        });
+        if (newName === undefined) {
+            return;
+        }
+
+        const trimmedName = newName.trim();
+        if (trimmedName === currentName) {
+            return;
+        }
+
+        group.name = trimmedName || undefined;
+        await context.globalState.update(WORKFLOWS_KEY, savedWorkflows);
+        workflowsProvider.refresh();
     });
 
     const refreshWorkflowsCommand = vscode.commands.registerCommand('sparkshift.refreshWorkflows', () => {
         workflowsProvider.refresh();
     });
 
+    const hasSameNameOpenTab = (viewColumn: vscode.ViewColumn, fileName: string): boolean => {
+        const group = vscode.window.tabGroups.all.find(g => g.viewColumn === viewColumn);
+        if (!group) {
+            return false;
+        }
+        return group.tabs.some(tab => {
+            const uri = (tab.input as { uri?: vscode.Uri } | undefined)?.uri;
+            return path.basename(uri?.fsPath ?? tab.label) === fileName;
+        });
+    };
+
     const openTabCommand = vscode.commands.registerCommand('sparkshift.openTab', async (tabInfo: TabInfo, viewColumn: vscode.ViewColumn) => {
         try {
             if (tabInfo.uri) {
                 const uri = vscode.Uri.parse(tabInfo.uri);
+                const fileName = path.basename(uri.fsPath);
                 const document = await vscode.workspace.openTextDocument(uri);
-                await vscode.window.showTextDocument(document, { viewColumn });
+                const preview = !hasSameNameOpenTab(viewColumn, fileName);
+                await vscode.window.showTextDocument(document, { viewColumn, preview });
             }
         } catch (error) {
             console.error(`Failed to open tab ${tabInfo.label}:`, error);
@@ -293,14 +369,64 @@ export function activate(context: vscode.ExtensionContext) {
         workflowsProvider.refresh();
     });
 
+    const editTabPathCommand = vscode.commands.registerCommand('sparkshift.editTabPath', async (tabItem: any) => {
+        if (!tabItem?.tabInfo?.uri) {
+            return;
+        }
+        const { workflowName, viewColumn, tabInfo } = tabItem;
+
+        const currentPath = vscode.Uri.parse(tabInfo.uri).fsPath;
+        const newPath = await vscode.window.showInputBox({
+            prompt: 'Enter the new absolute file path',
+            value: currentPath
+        });
+        if (!newPath || newPath === currentPath) {
+            return;
+        }
+        if (!path.isAbsolute(newPath)) {
+            vscode.window.showWarningMessage('Please enter an absolute file path.');
+            return;
+        }
+
+        const newUri = vscode.Uri.file(newPath);
+        try {
+            await vscode.workspace.fs.stat(newUri);
+        } catch {
+            vscode.window.showWarningMessage(`File not found: ${newPath}`);
+            return;
+        }
+
+        const oldUriString = tabInfo.uri;
+        const savedWorkflows = context.globalState.get<{ [name: string]: TabGroupInfo[] }>(WORKFLOWS_KEY, {});
+        const group = savedWorkflows[workflowName]?.find(g => g.viewColumn === viewColumn);
+        const tab = group?.tabs.find(t => t.uri === oldUriString);
+        if (!group || !tab) {
+            return;
+        }
+
+        const newUriString = newUri.toString();
+        tab.uri = newUriString;
+        tab.label = path.basename(newPath);
+        if (group.activeTabUri === oldUriString) {
+            group.activeTabUri = newUriString;
+        }
+
+        await context.globalState.update(WORKFLOWS_KEY, savedWorkflows);
+        workflowsProvider.refresh();
+    });
+
     context.subscriptions.push(
+        workflowsTreeView,
         saveWorkflowCommand,
         restoreWorkflowCommand,
         refreshWorkflowsCommand,
         openTabCommand,
         deleteWorkflowCommand,
         renameWorkflowCommand,
-        deleteTabCommand
+        deleteTabCommand,
+        editTabPathCommand,
+        restoreGroupCommand,
+        renameGroupCommand
     );
 }
 
