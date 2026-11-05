@@ -2,7 +2,7 @@
   "name": "sparkshift",
   "displayName": "SparkShift",
   "description": "Save and restore workflows",
-  "icon": "./icon/icon.png",
+  "icon": "icon/icon.png",
   "publisher": "iamkulele-sparkshift",
   "version": "0.1.3",
   "license": "MIT",
